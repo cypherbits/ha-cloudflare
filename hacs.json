@@ -1,0 +1,7 @@
+{
+  "name": "HA Cloudflare DNS (replaces original)",
+  "zip_release": false,
+  "hide_default_branch": true,
+  "country": ["ES"],
+  "homeassistant": "2025.11.0"
+}
