@@ -114,7 +114,7 @@ class CloudflareConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     @staticmethod
-    async def async_get_options_flow(
+    def async_get_options_flow(
         config_entry: ConfigEntry,
     ) -> CloudflareOptionsFlowHandler:
         """Get the options flow for this handler."""
