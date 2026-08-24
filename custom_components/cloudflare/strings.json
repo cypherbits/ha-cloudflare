@@ -1,7 +1,9 @@
 {
   "config": {
     "abort": {
-      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]"
     },
     "error": {
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
@@ -36,6 +38,18 @@
           "zone": "Zone"
         },
         "title": "Choose the zone to update"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "domains": "Domains to manage",
+          "new_domains": "New subdomains (comma-separated)"
+        },
+        "title": "Manage domains",
+        "description": "Tick the A records to manage. Any new subdomain you type will be created automatically as an A record pointing to your external IP."
       }
     }
   },

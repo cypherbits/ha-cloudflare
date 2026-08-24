@@ -34,7 +34,7 @@ from .const import (
     PLATFORMS,
     SERVICE_UPDATE_RECORDS,
 )
-from .helpers import async_create_a_record
+from .helpers import async_create_a_record, get_configured_domains
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Fetch and synchronize DNS records for configured domains."""
         zone_id = dns_zone["id"]
         external_ip = await _async_get_external_ipv4()
-        configured_domains: list[str] = entry.data.get(CONF_DOMAINS) or entry.data.get(CONF_RECORDS) or []
+        configured_domains: list[str] = get_configured_domains(entry)
 
         # Retrieve existing A records for zone
         records = await client.list_dns_records(zone_id=zone_id, type="A")
@@ -180,10 +180,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.services.async_register(DOMAIN, SERVICE_UPDATE_RECORDS, update_records_service)
 
+    # Reload the entry when its options change (e.g. domains added via options flow)
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+
     # Forward platforms (switch entities per domain)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
+
+
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the config entry when its options are updated."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
