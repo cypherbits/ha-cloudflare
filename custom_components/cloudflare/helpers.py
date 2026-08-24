@@ -8,7 +8,24 @@ from typing import Any
 import pycfdns
 from aiohttp import ClientSession
 
+from homeassistant.config_entries import ConfigEntry
+
+from .const import CONF_DOMAINS, CONF_RECORDS
+
 _LOGGER = logging.getLogger(__name__)
+
+
+def get_configured_domains(entry: ConfigEntry) -> list[str]:
+    """Return the configured domains for a config entry.
+
+    Options (managed through the options flow) take precedence over the
+    original data so that domains removed via options are no longer managed.
+    """
+    if CONF_DOMAINS in entry.options:
+        return list(entry.options[CONF_DOMAINS])
+    return list(
+        entry.data.get(CONF_DOMAINS) or entry.data.get(CONF_RECORDS) or []
+    )
 
 
 def get_zone_id(target_zone_name: str, zones: list[pycfdns.ZoneModel]) -> str | None:

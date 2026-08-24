@@ -9,7 +9,12 @@ from typing import Any
 import pycfdns
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_API_TOKEN, CONF_ZONE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -17,7 +22,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CONF_DOMAINS, DOMAIN
-from .helpers import get_zone_id
+from .helpers import get_configured_domains, get_zone_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +45,43 @@ def _records_schema(records: list[pycfdns.RecordModel] | None = None) -> vol.Sch
     if records:
         records_dict = {item["name"]: item["name"] for item in records}
     return vol.Schema({vol.Required(CONF_DOMAINS): cv.multi_select(records_dict)})
+
+
+def _options_schema(
+    records: list[pycfdns.RecordModel] | None,
+    configured_domains: list[str],
+) -> vol.Schema:
+    """Schema for the options flow: existing A records plus new subdomains."""
+    records_dict: dict[str, str] = {}
+    if records:
+        records_dict = {item["name"]: item["name"] for item in records}
+    # Keep currently configured domains visible even if their record does not exist yet.
+    for domain in configured_domains:
+        records_dict.setdefault(domain, domain)
+
+    return vol.Schema(
+        {
+            vol.Required(CONF_DOMAINS, default=configured_domains): cv.multi_select(
+                records_dict
+            ),
+            vol.Optional("new_domains", default=""): str,
+        }
+    )
+
+
+def _normalize_domains(domains: list[str]) -> list[str]:
+    """Normalize and deduplicate a list of domains."""
+    normalized: list[str] = []
+    for domain in domains:
+        domain = domain.strip().lower().rstrip(".")
+        if domain and domain not in normalized:
+            normalized.append(domain)
+    return normalized
+
+
+def _split_new_domains(value: str) -> list[str]:
+    """Split a comma-separated string into individual domains."""
+    return _normalize_domains(value.split(","))
 
 
 async def _validate_input(
@@ -70,6 +112,13 @@ class CloudflareConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Cloudflare."""
 
     VERSION = 1
+
+    @staticmethod
+    async def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> CloudflareOptionsFlowHandler:
+        """Get the options flow for this handler."""
+        return CloudflareOptionsFlowHandler(config_entry)
 
     def __init__(self) -> None:
         """Initialize the Cloudflare config flow."""
@@ -183,6 +232,62 @@ class CloudflareConfigFlow(ConfigFlow, domain=DOMAIN):
             errors["base"] = "unknown"
 
         return info, errors
+
+
+class CloudflareOptionsFlowHandler(OptionsFlow):
+    """Handle options for the Cloudflare integration."""
+
+    def __init__(self, entry: ConfigEntry) -> None:
+        """Initialize the options flow."""
+        super().__init__(entry)
+        self.records: list[pycfdns.RecordModel] | None = None
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the domains (and subdomains) managed by the integration."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            selected = user_input.get(CONF_DOMAINS, [])
+            new_domains = _split_new_domains(user_input.get("new_domains", ""))
+            domains = _normalize_domains([*selected, *new_domains])
+            if not domains:
+                errors["base"] = "no_domains"
+            else:
+                return self.async_create_entry(
+                    title="",
+                    data={**self.entry.options, CONF_DOMAINS: domains},
+                )
+
+        if self.records is None:
+            try:
+                self.records = await self._async_get_records()
+            except pycfdns.AuthenticationException:
+                return self.async_abort(reason="invalid_auth")
+            except pycfdns.ComunicationException:
+                return self.async_abort(reason="cannot_connect")
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_options_schema(
+                self.records, get_configured_domains(self.entry)
+            ),
+            errors=errors,
+        )
+
+    async def _async_get_records(self) -> list[pycfdns.RecordModel]:
+        """Fetch the existing A records for the configured zone."""
+        entry = self.entry
+        client = pycfdns.Client(
+            api_token=entry.data[CONF_API_TOKEN],
+            client_session=async_get_clientsession(self.hass),
+        )
+        zones = await client.list_zones()
+        zone_id = get_zone_id(entry.data[CONF_ZONE], zones)
+        if zone_id is None:
+            return []
+        return await client.list_dns_records(zone_id=zone_id, type="A")
 
 
 class CannotConnect(HomeAssistantError):
