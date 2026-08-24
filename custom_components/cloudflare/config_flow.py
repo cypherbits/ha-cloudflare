@@ -239,7 +239,7 @@ class CloudflareOptionsFlowHandler(OptionsFlow):
 
     def __init__(self, entry: ConfigEntry) -> None:
         """Initialize the options flow."""
-        self.entry = entry
+        super().__init__(entry)
         self.records: list[pycfdns.RecordModel] | None = None
 
     async def async_step_init(
@@ -256,7 +256,8 @@ class CloudflareOptionsFlowHandler(OptionsFlow):
                 errors["base"] = "no_domains"
             else:
                 return self.async_create_entry(
-                    title="", data={CONF_DOMAINS: domains}
+                    title="",
+                    data={**self.entry.options, CONF_DOMAINS: domains},
                 )
 
         if self.records is None:
