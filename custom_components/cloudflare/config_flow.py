@@ -16,7 +16,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.const import CONF_API_TOKEN, CONF_ZONE
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -114,11 +114,12 @@ class CloudflareConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     @staticmethod
+    @callback
     def async_get_options_flow(
         config_entry: ConfigEntry,
     ) -> CloudflareOptionsFlowHandler:
         """Get the options flow for this handler."""
-        return CloudflareOptionsFlowHandler(config_entry)
+        return CloudflareOptionsFlowHandler()
 
     def __init__(self) -> None:
         """Initialize the Cloudflare config flow."""
@@ -237,9 +238,12 @@ class CloudflareConfigFlow(ConfigFlow, domain=DOMAIN):
 class CloudflareOptionsFlowHandler(OptionsFlow):
     """Handle options for the Cloudflare integration."""
 
-    def __init__(self, entry: ConfigEntry) -> None:
-        """Initialize the options flow."""
-        super().__init__(entry)
+    def __init__(self) -> None:
+        """Initialize the options flow.
+
+        Home Assistant injects the config entry through ``self.config_entry``;
+        it must not be passed to the constructor (removed in HA 2025.12).
+        """
         self.records: list[pycfdns.RecordModel] | None = None
 
     async def async_step_init(
@@ -256,8 +260,7 @@ class CloudflareOptionsFlowHandler(OptionsFlow):
                 errors["base"] = "no_domains"
             else:
                 return self.async_create_entry(
-                    title="",
-                    data={**self.entry.options, CONF_DOMAINS: domains},
+                    data={**self.config_entry.options, CONF_DOMAINS: domains},
                 )
 
         if self.records is None:
@@ -271,14 +274,14 @@ class CloudflareOptionsFlowHandler(OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=_options_schema(
-                self.records, get_configured_domains(self.entry)
+                self.records, get_configured_domains(self.config_entry)
             ),
             errors=errors,
         )
 
     async def _async_get_records(self) -> list[pycfdns.RecordModel]:
         """Fetch the existing A records for the configured zone."""
-        entry = self.entry
+        entry = self.config_entry
         client = pycfdns.Client(
             api_token=entry.data[CONF_API_TOKEN],
             client_session=async_get_clientsession(self.hass),
