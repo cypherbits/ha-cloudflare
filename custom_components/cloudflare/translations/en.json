@@ -1,23 +1,23 @@
 {
   "config": {
     "abort": {
-      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]"
+      "reauth_successful": "Reauthentication successful",
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication"
     },
     "error": {
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-      "unknown": "[%key:common::config_flow::error::unknown%]",
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unknown error occurred",
       "no_domains": "You must select or enter at least one domain"
     },
     "flow_title": "{name}",
     "step": {
       "reauth_confirm": {
         "data": {
-          "api_token": "[%key:common::config_flow::data::api_token%]",
-          "description": "Re-authenticate with your Cloudflare account."
-        }
+          "api_token": "API token"
+        },
+        "description": "Re-authenticate with your Cloudflare account."
       },
       "records": {
         "data": {
@@ -28,7 +28,7 @@
       },
       "user": {
         "data": {
-          "api_token": "[%key:common::config_flow::data::api_token%]"
+          "api_token": "API token"
         },
         "description": "This integration requires an API token created with Zone:Zone:Read and Zone:DNS:Edit permissions for all zones in your account.",
         "title": "Connect to Cloudflare"
@@ -43,8 +43,8 @@
   },
   "options": {
     "abort": {
-      "cannot_connect": "[%key:common::config_flow::abort::cannot_connect%]",
-      "invalid_auth": "[%key:common::config_flow::abort::invalid_auth%]"
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication"
     },
     "error": {
       "no_domains": "You must select or enter at least one domain"
